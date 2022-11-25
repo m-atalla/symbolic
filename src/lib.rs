@@ -5,7 +5,6 @@ use std::os::unix::fs::symlink;
 
 
 type SymPair = (String, String);
-
 fn read_sym_file() -> Result<String, String> {
     match fs::read_to_string(".sym") {
         Ok(contents) => Ok(contents),
@@ -75,7 +74,16 @@ fn parse_links(file: String) -> Result<Vec<SymPair>, String> {
     Ok(targets)
 }
 
+///
+/// makes symbolic links for each symbol pair: Source -> Destination
+/// exits early on the first erroneous pair encountered...
+/// ...I think it should be changed though collecting errors instead of exiting
+/// to allow other valid links to be formed. Perhaps the errors should be accumelated into a single
+/// string
+///
 fn make_symlinks(targets: Vec<SymPair>) -> Result<(), String> {
+    let mut err_accum = String::default();
+
     for (src_str, dest_str) in targets {
         let src = Path::new(&src_str);
         let dest = Path::new(&dest_str);
@@ -88,29 +96,35 @@ fn make_symlinks(targets: Vec<SymPair>) -> Result<(), String> {
         let dest_parent = match dest.parent() {
             Some(path) => path,
             None => {
-                return Err(format!("Failed to create link directory. {}", dest_str));
+                err_accum.push_str(&format!("Failed to create link directory. {}\n", dest_str));
+                continue;
             }
         };
 
         // when parent directory doesn't exist, it should created.
         if !dest_parent.exists() {
             if let Err(err) = fs::create_dir_all(dest_parent) {
-                return Err(format!("Failed to create link directory.\n{}", err));
+                err_accum.push_str(&format!("Failed to create link directory.\n{}\n", err));
+                continue;
             }
         }
 
 
         // sym link failures needs to be reported.
         if let Err(err) = symlink(src, dest) {
-            return Err(
-                format!(
-                    "Failed to form the following link:\n\t{} -> {},\nError: {}", 
+            err_accum.push_str(
+                &format!(
+                    "Failed to form the following link:\n\t{} -> {},\nError: {}\n", 
                     src_str,
                     dest_str,
                     err
                 )
             );
         }
+    }
+
+    if !err_accum.is_empty() {
+        return Err(err_accum);
     }
 
     Ok(())
