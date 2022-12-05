@@ -76,10 +76,6 @@ fn parse_links(file: String) -> Result<Vec<SymPair>, String> {
 
 ///
 /// makes symbolic links for each symbol pair: Source -> Destination
-/// exits early on the first erroneous pair encountered...
-/// ...I think it should be changed though collecting errors instead of exiting
-/// to allow other valid links to be formed. Perhaps the errors should be accumelated into a single
-/// string
 ///
 fn make_symlinks(targets: Vec<SymPair>) -> Result<(), String> {
     let mut err_accum = String::default();
