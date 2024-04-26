@@ -51,27 +51,23 @@ fn parse(raw_sym: &str) -> Result<String, &'static str> {
     Ok(raw_sym.to_string())
 }
 
-fn parse_links(file: String) -> Result<Vec<SymPair>, String> { 
+fn parse_links(file: String) -> Result<Vec<SymPair>, String> {
     let mut targets = vec![];
     for (line, text) in file.lines().enumerate() {
         match text.split_once(" -> ") {
             Some((src, dest)) => {
-                targets.push(
-                    (parse(src)?, parse(dest)?)
-                );
-            }, 
+                targets.push((parse(src)?, parse(dest)?));
+            }
             None => {
-                return Err(
-                    format!(
-                        "Syntax error in line {}.\n
+                return Err(format!(
+                    "Syntax error in line {}.\n
                         Expected the following pattern:\n
                         \tSRC_PATH -> DEST_PATH\n
                         Found:\n
-                        \t{}", 
-                        line + 1, 
-                        text
-                    )
-                );
+                        \t{}",
+                    line + 1,
+                    text
+                ));
             }
         };
     }
@@ -109,17 +105,12 @@ fn make_symlinks(targets: Vec<SymPair>) -> Result<(), String> {
             }
         }
 
-
         // sym link failures needs to be reported.
         if let Err(err) = symlink(src, dest) {
-            err_accum.push_str(
-                &format!(
-                    "Failed to form the following link:\n\t{} -> {},\nError: {}\n", 
-                    src_str,
-                    dest_str,
-                    err
-                )
-            );
+            err_accum.push_str(&format!(
+                "Failed to form the following link:\n\t{} -> {},\nError: {}\n",
+                src_str, dest_str, err
+            ));
         }
     }
 
