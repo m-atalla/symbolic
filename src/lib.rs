@@ -1,32 +1,36 @@
-use std::fs;
 use std::env;
-use std::path::Path;
+use std::fs;
 use std::os::unix::fs::symlink;
-
+use std::path::Path;
 
 type SymPair = (String, String);
+
 fn read_sym_file() -> Result<String, String> {
     match fs::read_to_string(".sym") {
         Ok(contents) => Ok(contents),
-        Err(_) => {
-            Err(format!(
-                "Couldn't find a `.sym` file in the current directory: {}", 
-                env::current_dir().unwrap().to_str().unwrap()
-            ))
-        }
+        Err(_) => Err(format!(
+            "Couldn't find a `.sym` file in the current directory: {}",
+            env::current_dir().unwrap().to_str().unwrap()
+        )),
     }
 }
 
-fn parse(raw_sym: &str) -> Result<String, String> {
+
+///
+/// parses symbolic link component `SOURCE` or `TARGET` paths
+///
+/// ## TODO: 
+/// this should probably be replaced with 
+/// [`fs::canonicalize`](https://doc.rust-lang.org/std/fs/fn.canonicalize.html) 
+fn parse(raw_sym: &str) -> Result<String, &'static str> {
     if raw_sym.is_empty() {
-        return Err("Empty path".to_owned());
+        return Err("Empty path");
     }
-    
+
     // Replace "~" to $HOME value.
     if raw_sym.contains("~") {
         // when $HOME env variable is not defined, the program should panic.
-        let home = env::var("HOME")
-            .expect("$HOME environment variable is not defined.");
+        let home = env::var("HOME").expect("$HOME environment variable is not defined.");
 
         return Ok(raw_sym.replace("~", &home));
     }
@@ -35,9 +39,9 @@ fn parse(raw_sym: &str) -> Result<String, String> {
     if raw_sym.starts_with("./") {
         let mut current_dir = env::current_dir()
             .unwrap()
-            .into_os_string()
-            .into_string()
-            .unwrap();
+            .into_os_string() // PathBuf -> to OsString
+            .into_string() 
+            .unwrap(); 
 
         current_dir.push('/');
 
