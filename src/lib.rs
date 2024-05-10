@@ -2,6 +2,7 @@ use std::env;
 use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::Path;
+use std::path::PathBuf;
 
 type SymPair = (String, String);
 
@@ -15,14 +16,14 @@ fn read_sym_file() -> Result<String, String> {
     }
 }
 
-
 ///
-/// parses symbolic link component `SOURCE` or `TARGET` paths
+/// normalizes symbolic link component `SOURCE` or `TARGET` paths
 ///
-/// ## TODO: 
-/// this should probably be replaced with 
-/// [`fs::canonicalize`](https://doc.rust-lang.org/std/fs/fn.canonicalize.html) 
-fn parse(raw_sym: &str) -> Result<String, &'static str> {
+/// The "normalize" process is the following:
+/// - replace `~` with the value of env var `$HOME`
+/// - replace `./` with the value of the current directory
+///
+fn normalize_component(raw_sym: &str) -> Result<String, &'static str> {
     if raw_sym.is_empty() {
         return Err("Empty path");
     }
@@ -40,8 +41,8 @@ fn parse(raw_sym: &str) -> Result<String, &'static str> {
         let mut current_dir = env::current_dir()
             .unwrap()
             .into_os_string() // PathBuf -> to OsString
-            .into_string() 
-            .unwrap(); 
+            .into_string()
+            .unwrap();
 
         current_dir.push('/');
 
@@ -56,7 +57,7 @@ fn parse_links(file: String) -> Result<Vec<SymPair>, String> {
     for (line, text) in file.lines().enumerate() {
         match text.split_once(" -> ") {
             Some((src, dest)) => {
-                targets.push((parse(src)?, parse(dest)?));
+                targets.push((normalize_component(src)?, normalize_component(dest)?));
             }
             None => {
                 return Err(format!(
@@ -138,6 +139,16 @@ mod test {
     #[test]
     fn it_parses_home() {
         let raw_sym = "~/.config";
-        assert!(parse(raw_sym).unwrap().starts_with("/home/"));
+        assert!(normalize_component(raw_sym).unwrap().starts_with("/home/"));
+    }
+
+    #[test]
+    fn it_parses_cwd() {
+        let current_sym = "./config";
+        let cwd = env::current_dir().unwrap();
+
+        assert!(normalize_component(current_sym)
+            .unwrap()
+            .starts_with(cwd.to_str().unwrap()));
     }
 }
