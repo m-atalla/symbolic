@@ -14,8 +14,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// links file using symbolic syntax `<SOURCE> -> <TARGET>`
-    Link { sym: String },
+    /// links file from `<SOURCE> to -> <TARGET>`
+    Link { source: String, target: String },
     /// update symbolic links for the provided `.sym` file path. (default=".")
     Update(PathArg),
     /// breaks target links for the provided `.sym` file path. (default=".")
@@ -23,7 +23,7 @@ enum Commands {
 }
 
 
-#[derive(Args)]
+#[derive(Args, Debug)]
 struct PathArg {
     path: Option<String>
 }
@@ -32,8 +32,11 @@ fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Link{..} => { 
-            unimplemented!()
+        Commands::Link{ source, target } => { 
+            if let Err(err) = symbolic::link_up(source, target) { 
+                eprintln!("{}", err);
+                process::exit(1);
+            }
         },
         Commands::Update(_arg) => { 
             if let Err(err) = symbolic::run() {
