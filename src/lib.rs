@@ -2,7 +2,6 @@ use std::env;
 use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::Path;
-use std::path::PathBuf;
 
 type SymPair = (String, String);
 
@@ -78,45 +77,55 @@ fn parse_links(file: String) -> Result<Vec<SymPair>, String> {
 ///
 /// makes symbolic links for each symbol pair: Source -> Destination
 ///
-fn make_symlinks(targets: Vec<SymPair>) -> Result<(), String> {
+pub fn make_symlinks(targets: Vec<SymPair>) -> Result<(), String> {
     let mut err_accum = String::default();
 
-    for (src_str, dest_str) in targets {
-        let src = Path::new(&src_str);
-        let dest = Path::new(&dest_str);
-
-        // when a link already exists, it should be skipped.
-        if dest.is_symlink() {
-            continue;
-        }
-
-        let dest_parent = match dest.parent() {
-            Some(path) => path,
-            None => {
-                err_accum.push_str(&format!("Failed to create link directory. {}\n", dest_str));
-                continue;
-            }
+    for (src, trgt) in targets {
+        match link_up(&src, &trgt) {
+            Ok(()) => (),
+            Err(err_message) => err_accum.push_str(&err_message),
         };
-
-        // when parent directory doesn't exist, it should created.
-        if !dest_parent.exists() {
-            if let Err(err) = fs::create_dir_all(dest_parent) {
-                err_accum.push_str(&format!("Failed to create link directory.\n{}\n", err));
-                continue;
-            }
-        }
-
-        // sym link failures needs to be reported.
-        if let Err(err) = symlink(src, dest) {
-            err_accum.push_str(&format!(
-                "Failed to form the following link:\n\t{} -> {},\nError: {}\n",
-                src_str, dest_str, err
-            ));
-        }
     }
 
     if !err_accum.is_empty() {
         return Err(err_accum);
+    }
+
+    Ok(())
+}
+
+pub fn link_up<'a>(source: &'a str, target: &'a str) -> Result<(), String> {
+    let src = Path::new(source);
+    let dest = Path::new(target);
+
+    // when a link already exists, it should be skipped.
+    if dest.is_symlink() {
+        return Err(format!("Target path already linked. (`{}`\n", target));
+    }
+
+    let dest_parent = match dest.parent() {
+        Some(path) => path,
+        None => {
+            return Err(format!("Failed to create link directory. {}\n", target));
+        }
+    };
+
+    // when parent directory doesn't exist, it should created.
+    if !dest_parent.exists() {
+        if let Err(err) = fs::create_dir_all(dest_parent) {
+            return Err(format!(
+                "Failed to create target link parent directory.\n{}\n",
+                err
+            ));
+        }
+    }
+
+    // sym link failures needs to be reported.
+    if let Err(err) = symlink(src, dest) {
+        return Err(format!(
+            "Failed to form the following link:\n\t{} -> {},\nError: {}\n",
+            source, target, err
+        ));
     }
 
     Ok(())
