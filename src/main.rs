@@ -1,6 +1,6 @@
+use clap::{Args, Parser, Subcommand};
 use std::process;
 
-use clap::{Args, Parser, Subcommand};
 /// Configuration files symbolic linking utility
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -13,13 +13,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// links file from `<SOURCE> to -> <TARGET>`
+    /// links file from `<SOURCE> -> <TARGET>`
     Link { source: String, target: String },
     /// update symbolic links for the provided `.sym` file path. (default=".")
     #[clap(visible_alias("up"))]
     Update(PathArg),
-    /// breaks target links for the provided `.sym` file path. (default=".")
-    Break(PathArg),
+    /// breaks target sym link for the provided (dir/file) path.
+    Break { target: String },
 }
 
 #[derive(Args, Debug)]
@@ -43,9 +43,11 @@ fn main() {
                 process::exit(1);
             }
         }
-        Commands::Break(_arg) => {
-            println!("path: {:?}", _arg);
-            unimplemented!()
+        Commands::Break { target } => {
+            if let Err(err) = symbolic::break_link(target) {
+                eprintln!("{}", err);
+                process::exit(1);
+            }
         }
     }
 }

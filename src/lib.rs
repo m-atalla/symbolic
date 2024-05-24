@@ -100,7 +100,7 @@ pub fn link_up<'a>(source: &'a str, target: &'a str) -> Result<(), String> {
 
     // when a link already exists, it should be skipped.
     if dest.is_symlink() {
-        return Err(format!("Target path already linked. (`{}`\n", target));
+        return Err(format!("Target path already linked. `{}`\n", target));
     }
 
     let dest_parent = match dest.parent() {
@@ -126,6 +126,35 @@ pub fn link_up<'a>(source: &'a str, target: &'a str) -> Result<(), String> {
             "Failed to form the following link:\n\t{} -> {},\nError: {}\n",
             source, target, err
         ));
+    }
+
+    Ok(())
+}
+
+pub fn break_link<'a>(target: &'a str) -> Result<(), String> {
+    let dest = Path::new(target);
+
+    if !dest.is_symlink() {
+        return Err(format!(
+            "Cannot break link provided target: `{}` is not a symbolic link!\n",
+            target
+        ));
+    }
+
+    if dest.is_dir() {
+        if let Err(err) = std::fs::remove_dir_all(dest) {
+            return Err(format!(
+                "Failed to break link for the directory `{}`\nfs error: {}",
+                target, err
+            ));
+        }
+    } else {
+        if let Err(err) = std::fs::remove_file(dest) {
+            return Err(format!(
+                "Failed to break link for the directory `{}`\nfs error: {}",
+                target, err
+            ));
+        }
     }
 
     Ok(())
